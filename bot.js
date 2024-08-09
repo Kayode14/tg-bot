@@ -6,7 +6,7 @@ const db = require('./firebase');
 const tasks = require('./tasks');
 const checkBalance = require('./balance');
 const admin = require('firebase-admin');
-const bot = new Telegraf('5848386549:AAHvPrmirUkirfGfv60d_oq_VR45qdBxhqs');
+const bot = new Telegraf('5848386549:AAHmDkQVmmulukoe3RK34uuzvS8mXL-nZZs');
 
 // Initialize Express app
 const app = express();
