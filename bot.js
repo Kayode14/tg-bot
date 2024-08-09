@@ -1,3 +1,4 @@
+const express = require('express');
 const { Telegraf, Markup } = require('telegraf');
 const userTasks = {}; // Add this line at the top of your bot.js file
 const axios = require('axios');
@@ -7,6 +8,9 @@ const checkBalance = require('./balance');
 const admin = require('firebase-admin');
 const bot = new Telegraf('5848386549:AAHvPrmirUkirfGfv60d_oq_VR45qdBxhqs');
 
+// Initialize Express app
+const app = express();
+const port = process.env.PORT || 4000;
 
 const groupLink = 'https://t.me/alliance_Ton';
 const groupName = 'TON Alliance Earn Platform';
@@ -28,6 +32,16 @@ const retryOperation = async (operation, retries = 3, delay = 1000) => {
     }
   }
 };
+
+
+// Express server route
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+app.listen(port, () => {
+  console.log(`Express server listening on port ${port}`);
+});
 
 const checkAndSaveUser = async (user, referralCode) => {
   const userRef = db.collection('users').doc(String(user.id));
