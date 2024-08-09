@@ -5,7 +5,7 @@ const db = require('./firebase');
 const tasks = require('./tasks');
 const checkBalance = require('./balance');
 const admin = require('firebase-admin');
-const bot = new Telegraf('7238092780:AAGel9nio5iHqI076wlFxQaGz6ZmisINIBw');
+const bot = new Telegraf('5848386549:AAHvPrmirUkirfGfv60d_oq_VR45qdBxhqs');
 
 
 const groupLink = 'https://t.me/alliance_Ton';
