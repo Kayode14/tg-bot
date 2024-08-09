@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 
 // Define the tasks with added emojis and improved descriptions
 const tasks = [
-  { id: 1, description: "👥 *Join our Telegram group:* [Click here]( https://t.me/alliance_Ton)", type: "telegramGroup", points: 50 },
+  { id: 1, description: "🔁 *Retweet our tweet:* [Click here](https://x.com/allianceton/status/1820568925756887403?s=46)", type: "twitterLink", points: 50 },
   { id: 2, description: "🐦 *Follow us on Twitter:* [Click here](https://twitter.com/AllianceTon/)", type: "twitter", points: 50 },
   { id: 3, description: "🔁 *Retweet our pinned tweet:* [Click here](https://x.com/AllianceTon/status/1820569160981848407)", type: "twitterLink", points: 50 },
   { id: 4, description: "📝 *Add $LEA to your Telegram name*", link: "", type: "telegramName", points: 100 },
