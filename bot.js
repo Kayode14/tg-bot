@@ -1,458 +1,376 @@
-const TelegramBot = require("node-telegram-bot-api");
-const express = require('express');
+const { Telegraf, Markup } = require('telegraf');
+const userTasks = {}; // Add this line at the top of your bot.js file
+const axios = require('axios');
+const db = require('./firebase');
+const tasks = require('./tasks');
+const checkBalance = require('./balance');
 const admin = require('firebase-admin');
-
-// Firebase configuration
-const firebaseConfig = {
-  type: "service_account",
-  project_id: "ton-lea",
-  private_key_id: "16b478c4e693d880a24d3922c5e2e30a96ad0559",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8TUOHD39Hgq0S\napmBUA48oyiyMr8pLqpV0b9ZIi0zG5zDv8rRbp1bnnCCuqm2wU5jPI7I87TMDTKS\nCPSwswvApd4tLWP11jf4Hx0f7IjjgM6cNH+ttnCFolDqb1AiJPzRrZZ9Gd4M43/L\naSMmrESeMMEGglPY7UXWtep/Iku0hDbt74fbUwrhZIjaCenPUO3KuKBxgFLGauVc\nYhMIgAioqb2GwU19/x02SSEY/NiVqm7lTslIK+mC9J0DQrBa/9ypTYvqYsd2+Kiu\n+VjrplKrR6+cXWjLemTgu4bwDAtBmddR4OwTj8ese7RSxJSO5kb4yvRBPo/wp6qr\njcdgQxzLAgMBAAECggEAHq5+NscNJ6NAvRP2gC4Bq9qv+l0vba/nXEVpZsYdVEsG\n/5REIVzjMfb+gSaWGauksKHA6DhheLAb0dS4vgPmgdTk/zp6o6dshjbXoYiCg4NM\n5wHc3fqwme2pPpG1nmKleSrOLwMkfbgh7gxrCFWgdqAeC4f3zoxWyVXp6B439Kkg\nlE+INGtRm20PxM7QtvWZlzi3fRd0+dKYZAeFDuc2HfxUpfxqyzVoKtn8J/9HCsYg\nu+4kbPeScFwOMrWFHfbTQCPepHU0ZzZbJg7CGYyGykhJIw1URQlNmMuE9vKK9B4/\n3jLfvnQdYBOyXv4T/Z78brjCSawlRpZsTKyKTgUVXQKBgQDvLI3PIXmBgvhv+SyN\ntJVBzcmTDPl41G/VmOFO1uR4guT0ZDgdK3vqCnstho3IGIb5LmTmly69e+RoodJT\nqwHvEFLV9Y2kxWb9Zf6M03hPxHTiO93nZ+ZOra0aMbdSwqD++Z5ohhEC1GKOS7k4\nToh6bEdOTdLgCJTE1K/1gIljtQKBgQDJjISH1VjANtBr1Fk61bGym+Th7vl3cZ0I\nY40028/37HYmUuy1J+s/V+ly4hlbyb3P+RVK9ghMQu/gBhtkeq0rJm54uG9rcWLQ\n/0/HeOKqsjMzhP+WbcoVZ+1JjSModbzHskxSBAwMXTuZfap/CDWSA0kwWdk/MKL0\n6pCBj8POfwKBgCtoFJyA4MJmeJwpxrI5EdWNeYXclvIc6+cCBfH/Ahv09YR9I8n3\neFeza0OJ5fVoriZPCzTmPy9Yas2qgLd6k7FFbyMxm3FJ+jUG67m3L2CasPPWFaHH\ns36X+pCEcVbtx7Y+q0cg/blbvj9A8u6LIi3FtPM7IIhURluqlfyiRUz5AoGBAJxy\nJYGmmoCBS+EXcLfZnliM5+p0bFJJ72HOnJI2OcUxWDjBT5oCxXlizQPu+04jV+Iy\nb1PDjIddwgL72pFxJDAFYeT1DQ+ycMjYFV45uIBVWKcaCqcCy8U36ZmZI3xJf+Lm\nxJU5LPz/9b5cLFb00VhokowkghyprSQ9WzQmmxATAoGATOly6hyjiRYCXclc+yi2\nUpJQSGUl3R1iApqEvl0B/NrvLGDiTty385RL+JGTcxgWGaWdea665ML/vfmv8ydu\nLnLLJLqH5x6790RugRk9Jo/052e6T6m24oYgQx/643qnSsB6sG8IrlsKBEM2+QM1\nHbEQZFCFeq0+v/X3Stv5Xyo=\n-----END PRIVATE KEY-----\n",
-  client_email: "firebase-adminsdk-lbwm1@ton-lea.iam.gserviceaccount.com",
-  client_id: "115823212131955077414",
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-lbwm1%40ton-lea.iam.gserviceaccount.com",
-  universe_domain: "googleapis.com"
-};
-
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfig)
-});
-
-const db = admin.firestore();
-const usersCollection = db.collection('users');
-
-const app = express();
-
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
-
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
-
-// Replace the value below with the Telegram token you receive from @BotFather
-const token = "5848386549:AAHvPrmirUkirfGfv60d_oq_VR45qdBxhqs";
-
-const bot = new TelegramBot(token, { polling: true });
-
-const gifUrl = "https://media2.giphy.com/media/26n6xBpxNXExDfuKc/giphy.gif";
-const gifUrl2 = "https://media4.giphy.com/media/4xWGyVKoXqg2eVCiq9/giphy.gif";
-const groupLink = "https://t.me/alliance_Ton";
-const mainImageUrl = "https://ibb.co/RHKK2Cq"; // replace with your image URL
-
-// Define the tasks array
-const tasks = [
-  { 
-    description: "1. Follow TON Alliance on Twitter 🐦\n🔗 [https://twitter.com/AllianceTon](https://twitter.com/AllianceTon)\n💰 Reward: 15 LEA", 
-    link: "https://twitter.com/AllianceTon", 
-    points: 15, 
-    type: "twitter", 
-    prompt: "Please enter your Twitter username (starting with @):" 
-  },
-  { 
-    description: "2. Like and retweet pinned post 🔄\n💰 Reward: 20 LEA", 
-    link: "https://x.com/allianceton/status/1820569160981848407?s=46", 
-    points: 20, 
-    type: "twitter", 
-    prompt: "Please enter your Twitter username (starting with @):" 
-  },
-  { 
-    description: "3. Like and retweet this tweet 🔄\n💰 Reward: 20 LEA", 
-    link: "https://x.com/allianceton/status/1820568925756887403?s=46", 
-    points: 20, 
-    type: "twitter", 
-    prompt: "Please enter your Twitter username (starting with @):" 
-  },
-  { 
-    description: "4. Comment $LEA under TON tweet 📝\n💰 Reward: 30 LEA", 
-    link: "https://x.com/allianceton/status/1820568056227307970?s=46", 
-    points: 30, 
-    type: "twitterLink", 
-    prompt: "Please enter the tweet link (starting with https://x.com/ or https://twitter.com/):" 
-  },
-  { 
-    description: "5. Add $LEA to Telegram name ✏️\n💰 Reward: 40 LEA", 
-    link: "reply DONE after", 
-    points: 40, 
-    type: "telegramName", 
-    prompt: "Please add $LEA to your Telegram name and reply this text with : done ,to continue." 
-  },
-  { 
-    description: "6. Join Notcoin Community 👥\n💰 Reward: 25 LEA", 
-    link: "@notcoincommunity", 
-    points: 25, 
-    type: "telegramGroup", 
-    groupId: "@notcoincommunity", 
-    prompt: "Please enter your Telegram username :" 
-  },
-  { 
-    description: "7. Join fastonswapchat 👥\n💰 Reward: 25 LEA", 
-    link: "@fastonswapchat", 
-    points: 25, 
-    type: "telegramGroup", 
-    groupId: "@fastonswapchat", 
-    prompt: "Please enter your Telegram username:" 
-  }
-];
+const bot = new Telegraf('7238092780:AAGel9nio5iHqI076wlFxQaGz6ZmisINIBw');
 
 
-const sendMainMenu = async (chatId, username) => {
-  const welcomeMessage = `🎉 Welcome to Ton Alliance Earn Bot, @${username}! 🎉\n\n📋 Perform tasks or refer friends to earn $LEA. 💰`;
+const groupLink = 'https://t.me/alliance_Ton';
+const groupName = 'TON Alliance Earn Platform';
+const groupId = -1002241002221; // Replace with your actual Telegram group ID
 
-  const options = {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "📝 TASKS for the day", callback_data: "tasks" }],
-        [{ text: "👥 Refer friends", callback_data: "refer" }],
-        [{ text: "💵 Balance", callback_data: "balance" }]
-      ]
-    }
-  };
+const welcomeGif = 'https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif';
+const welcomeImage = 'https://ibb.co/RHKK2Cq'; // Replace with your actual image URL
 
-  await bot.sendPhoto(chatId, mainImageUrl, {
-    caption: welcomeMessage,
-    ...options
-  });
-
-  const userRef = usersCollection.doc(`${chatId}`);
-  await userRef.set({
-    userId: chatId,
-    username: username,
-    referralNo: 0,
-    balance: 0,
-    withdrawalAddress: null,
-    referrals: [],
-    earnings: 0,
-    completedTasks: []
-  }, { merge: true });
-};
-
-// Function to prompt the user to join the group
-const promptJoinGroup = (chatId) => {
-  const joinMessage = `👋 Welcome to Lea Earn Bot! Please make sure you join our Telegram group: ${groupLink} before you proceed.`;
-
-  const options = {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "➡️ Proceed", callback_data: "proceed" }]
-      ]
-    }
-  };
-
-  // Send the welcome message with the GIF and the Proceed button
-  bot.sendAnimation(chatId, gifUrl, {
-    caption: joinMessage,
-    ...options
-  });
-};
-
-bot.onText(/\/start/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const username = msg.from.username || "User";
-
-  const userRef = usersCollection.doc(`${chatId}`);
-  const userDoc = await userRef.get();
-
-  if (!userDoc.exists) {
-    promptJoinGroup(chatId);
-  } else {
-    sendMainMenu(chatId, username);
-  }
-});
-
-bot.on('callback_query', async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
-  const username = callbackQuery.from.username || "User";
-
-  if (data === 'proceed') {
-    sendMainMenu(chatId, username);
-  } else if (data === 'tasks') {
-    bot.sendMessage(chatId, "Here are your tasks for the day...");
-  } else if (data === 'refer') {
-    const userRef = usersCollection.doc(`${chatId}`);
-    const userDoc = await userRef.get();
-
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      const referralLink = generateReferralLink(chatId);
-      const referralMessage = `
-        👥 Refer your friends and earn rewards! 💰
-
-        🔗 Your referral link: ${referralLink}
-
-        📈 Amount per referral: 100 LEA
-        📊 Your referral count: ${userData.referralNo}
-        💵 Earnings from referrals: ${userData.earnings} LEA
-      `;
-
-      bot.sendMessage(chatId, referralMessage);
+// Retry function
+const retryOperation = async (operation, retries = 3, delay = 1000) => {
+  while (retries > 0) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (retries === 1) throw error;
+      retries--;
+      console.log(`Retrying... ${retries} attempts left`);
+      await new Promise(res => setTimeout(res, delay));
     }
   }
-});
-
-const generateReferralLink = (userId) => {
-  return `https://t.me/EARNLEA_bot?start=${userId}`;
 };
 
-bot.onText(/\/start (.+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const username = msg.from.username || "User";
-  const referrerId = match[1]; // The referrer ID from the referral link
-
-  const userRef = usersCollection.doc(`${chatId}`);
-  const userDoc = await userRef.get();
-
-  if (!userDoc.exists) {
-    // New user
+const checkAndSaveUser = async (user, referralCode) => {
+  const userRef = db.collection('users').doc(String(user.id));
+  const doc = await userRef.get();
+  
+  if (!doc.exists) {
+    const referrerId = referralCode ? parseInt(referralCode) : null;
+    const newUser = {
+      userId: user.id,
+      chatId: user.id,
+      username: user.username,
+      referralNo: 0,
+      balance: 0,
+      withdrawalAddress: null,
+      referrals: [],
+      earnings: 0,
+      completedTasks: []
+    };
+    
     if (referrerId) {
-      // Handle referral
-      const referrerRef = usersCollection.doc(`${referrerId}`);
+      // Update referrer’s referral count and earnings
+      const referrerRef = db.collection('users').doc(String(referrerId));
       const referrerDoc = await referrerRef.get();
-
       if (referrerDoc.exists) {
-        // Update referrer data
         await referrerRef.update({
           referralNo: admin.firestore.FieldValue.increment(1),
-          earnings: admin.firestore.FieldValue.increment(100)
+          earnings: admin.firestore.FieldValue.increment(100) // Assuming 100 LEA is awarded per referral
         });
-
-        // Update new user data
-        await userRef.set({
-          userId: chatId,
-          username: username,
-          referralNo: 0,
-          balance: 100, // Reward for new user
-          withdrawalAddress: null,
-          referrals: [referrerId], // Add referrer to new user data
-          earnings: 0
-        }, { merge: true });
+        // Add the new user to the referrer's referral list
+        newUser.referrals.push(referrerId);
       }
-    } else {
-      // New user without a referral
-      await createUser(chatId, username);
     }
+    
+    await userRef.set(newUser, { merge: true });
+    return false; // New user
+  }
+  return true; // Returning user
+};
 
-    promptJoinGroup(chatId);
+
+bot.start(async (ctx) => {
+  const referralCode = ctx.message.text.split(' ')[1]; // Assuming referral code is passed as /start <referralCode>
+  const isReturningUser = await checkAndSaveUser(ctx.from, referralCode);
+
+  if (isReturningUser) {
+    ctx.replyWithPhoto(welcomeImage, {
+      caption: `🎉 *Welcome back, ${ctx.from.first_name}!* 🎉\n\nYour User ID: ${ctx.from.id}\n\nPerform tasks and refer friends to earn $LEA.`,
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('📝 Tasks for the Day', 'tasks')],
+        [Markup.button.callback('🤝 Refer Friends', 'refer')],
+        [Markup.button.callback('💰 Balance', 'balance')],
+        [Markup.button.callback('💰 Migrate Tokens', 'Migrate')]
+      ])
+    });
   } else {
-    sendMainMenu(chatId, username);
+    ctx.replyWithAnimation(welcomeGif, {
+      caption: `🎉 *Welcome to ${groupName}!* 🎉\n\nPlease join our Telegram group [here](${groupLink}) to start earning $LEA. 💰 Press "Proceed" to start using the bot.\n\n_Bot version: 0.1.13_`,
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('🚀 Proceed', 'proceed')]
+      ])
+    });
   }
 });
 
 
-//for tasks
-const handleTaskCompletion = async (chatId, taskId, userResponse) => {
-  const task = tasks[taskId];
-  const userRef = usersCollection.doc(`${chatId}`);
-  const userDoc = await userRef.get();
+bot.action('proceed', async (ctx) => {
+  const userId = ctx.from.id;
+  const messageId = ctx.update.callback_query.message.message_id;
 
-  if (userDoc.exists) {
-    const userData = userDoc.data();
-    const userId = userDoc.id;
+  try {
+    const chatMember = await bot.telegram.getChatMember(groupId, userId);
 
-    // Verification logic for each task type
-    if (task.type === "twitter" && userResponse.startsWith("@")) {
-      await userRef.update({
-        balance: admin.firestore.FieldValue.increment(task.points),
-        completedTasks: admin.firestore.FieldValue.arrayUnion(taskId)
+    if (['member', 'administrator', 'creator'].includes(chatMember.status)) {
+      await bot.telegram.deleteMessage(ctx.chat.id, messageId);
+      ctx.replyWithPhoto(welcomeImage, {
+        caption: `🎉 *Welcome back, ${ctx.from.first_name}!* 🎉\n\nYour User ID: ${userId}\n\nPerform tasks and refer friends to earn $LEA.`,
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          Markup.button.callback('📝 Tasks for the Day', 'tasks'),
+          Markup.button.callback('🤝 Refer Friends', 'refer'),
+          Markup.button.callback('💰 Balance', 'balance')
+        ])
       });
-      bot.sendMessage(chatId, `✅ Task ${taskId + 1} completed. Verified.`);
-    } else if (task.type === "twitterLink" && (userResponse.startsWith("https://x.com/") || userResponse.startsWith("https://twitter.com/"))) {
-      await userRef.update({
-        balance: admin.firestore.FieldValue.increment(task.points),
-        completedTasks: admin.firestore.FieldValue.arrayUnion(taskId)
-      });
-      bot.sendMessage(chatId, `✅ Task ${taskId + 1} completed. Verified.`);
-    } else if (task.type === "telegramName") {
-      // Fetch user's profile to check for $LEA in their name
-      const telegramUser = await bot.getChatMember(chatId, userId);
-      if (
-        (telegramUser.user.first_name && telegramUser.user.first_name.includes("$LEA")) ||
-        (telegramUser.user.last_name && telegramUser.user.last_name.includes("$LEA"))
-      ) {
-        await userRef.update({
-          balance: admin.firestore.FieldValue.increment(task.points),
-          completedTasks: admin.firestore.FieldValue.arrayUnion(taskId)
-        });
-        bot.sendMessage(chatId, `✅ Task ${taskId + 1} completed. Verified.`);
-      } else {
-        bot.sendMessage(chatId, `❌ Your Telegram name does not include $LEA. Please try again.`);
-      }
-    } else if (task.type === "telegramGroup") {
-      // For tasks 6 and 7, verify as soon as the user presses "done"
-      await userRef.update({
-        balance: admin.firestore.FieldValue.increment(task.points),
-        completedTasks: admin.firestore.FieldValue.arrayUnion(taskId)
-      });
-      bot.sendMessage(chatId, `✅ Task ${taskId + 1} completed. Verified.`);
     } else {
-      bot.sendMessage(chatId, `❌ Invalid response. Please try again.`);
+      await bot.telegram.deleteMessage(ctx.chat.id, messageId);
+      ctx.reply(`🚫 *You need to join the group first.*\n\nPlease join [here](${groupLink}) and then press "Proceed" again.`,
+        Markup.inlineKeyboard([
+          Markup.button.callback('🚀 Proceed', 'proceed')
+        ])
+      );
     }
-  }
-};
-
-const sendTasks = async (chatId) => {
-  const taskHeader = `📝 These are the currently available tasks:\n\n`;
-  await bot.sendAnimation(chatId, gifUrl2, { caption: taskHeader });
-
-  const userRef = usersCollection.doc(`${chatId}`);
-  const userDoc = await userRef.get();
-
-  let completedTasks = [];
-  if (userDoc.exists) {
-    const userData = userDoc.data();
-    completedTasks = userData.completedTasks || [];
-  }
-
-  for (let i = 0; i < tasks.length; i++) {
-    if (!completedTasks.includes(i)) {
-      const task = tasks[i];
-      const taskMessage = `${task.description}\nLink: ${task.link || "Link will be provided later"}\n`;
-      const options = {
-        reply_markup: {
-          inline_keyboard: [[{ text: "✅ Done", callback_data: `task_done_${i}` }]]
-        }
-      };
-      await bot.sendMessage(chatId, taskMessage, options);
-    }
-  }
-};
-
-bot.on('callback_query', async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
-  const username = callbackQuery.from.username || "User";
-
-  if (data === 'tasks') {
-    sendTasks(chatId);
-  } else if (data === 'refer') {
-    const userRef = usersCollection.doc(`${chatId}`);
-    const userDoc = await userRef.get();
-
-    if (userDoc.exists) {}
-  } else if (data.startsWith('task_done_')) {
-    const taskId = parseInt(data.split('_')[2], 10);
-    const task = tasks[taskId];
-    bot.sendMessage(chatId, task.prompt, { reply_markup: { force_reply: true } })
-      .then((sentMessage) => {
-        bot.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id, async (msg) => {
-          await handleTaskCompletion(chatId, taskId, msg.text);
-          await bot.deleteMessage(chatId, callbackQuery.message.message_id); // Delete the task message
-        });
-      });
+  } catch (error) {
+    console.error('Error checking group membership:', error);
+    ctx.reply('⚠️ There was an error checking your group membership. Please try again later.');
   }
 });
 
+const taskGifUrl = 'https://media4.giphy.com/media/4xWGyVKoXqg2eVCiq9/giphy.gif'; // Replace with your desired GIF URL
 
-const MIN_WITHDRAWAL_BALANCE = 350;
+bot.action('tasks', async (ctx) => {
+  const availableTasks = await tasks.getTasksForUser(ctx.from.id);
+  
+  if (availableTasks.length === 0) {
+    await ctx.replyWithAnimation(
+      'https://media.giphy.com/media/xTkcEQACH24SMPxIQg/giphy.gif', // Replace with a different GIF URL if desired
+      { caption: '🎉 All tasks are completed for today!' }
+    );
+    return;
+  }
 
-// Function to send balance message with GIF and Withdraw button
-async function sendBalanceMessage(chatId, totalBalance, taskEarnings, referralEarnings) {
-  const balanceMessage = `
-    💵 Your total balance: ${totalBalance} LEA
+  // Send the GIF first before the tasks
+  await ctx.replyWithAnimation(taskGifUrl, { caption: '📋 *Your Tasks for Today:*', parse_mode: 'Markdown' });
 
-    🏦 Task earnings: ${taskEarnings} LEA
-    🎁 Referral earnings: ${referralEarnings} LEA
-  `;
-
-  const balanceGif = 'https://media1.giphy.com/media/yIxNOXEMpqkqA/giphy.gif'; // Balance GIF URL
-
-  await bot.sendAnimation(chatId, balanceGif, {
-    caption: balanceMessage,
-    reply_markup: {
-      inline_keyboard: [[{ text: 'Withdraw', callback_data: 'withdraw' }]]
-    }
+  availableTasks.forEach((task, index) => {
+    ctx.reply(`${index + 1}. ${task.description}`, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        Markup.button.callback('✅ Done', `done_${task.id}`)
+      ])
+    });
   });
-}
+});
 
-// Function to handle withdrawal process
-async function handleWithdraw(chatId, totalBalance) {
-  if (totalBalance < MIN_WITHDRAWAL_BALANCE) {
-    const minBalanceMessage = '❌ The minimum withdrawal balance is 350 LEA.';
-    const sadGif = 'https://media1.giphy.com/media/SsYt3M37MnhhGelWC3/giphy.gif'; // Sad humor GIF URL
 
-    await bot.sendAnimation(chatId, sadGif, {
-      caption: minBalanceMessage
-    });
+bot.action(/^done_(.+)$/, async (ctx) => {
+  const taskId = ctx.match[1];
+  const task = await tasks.getTaskById(taskId);
+
+  if (task) {
+    userTasks[ctx.from.id] = task; // Store the task for the user
+
+    let promptMessage = "🔄 Please provide the required details to verify the task.";
+
+    // Determine prompt based on the task type
+    switch (task.type) {
+      case 'telegramGroup':
+      case 'telegramName':
+        promptMessage = "🔄 Please provide your *Telegram username* starting with @ to verify the task.";
+        break;
+      case 'twitter':
+      case 'twitterLink':
+        promptMessage = "🔄 Please provide your *Twitter username* to verify the task.";
+        break;
+      default:
+        // Default prompt is already set
+        break;
+    }
+
+    ctx.reply(promptMessage, { parse_mode: 'Markdown' });
   } else {
-    const requestAddressMessage = '🎉 Please send your TON withdrawal address:';
-    const happyGif = 'https://media3.giphy.com/media/8gjWMXlOrfUik0NvR2/giphy.gif'; // Rich humor GIF URL
+    ctx.reply("⚠️ *Task not found.* Please try again.", { parse_mode: 'Markdown' });
+  }
+});
 
-    await bot.sendAnimation(chatId, happyGif, {
-      caption: requestAddressMessage
+
+bot.action('Migrate', async (ctx) => {
+  await ctx.replyWithMarkdown(
+    `🔄 *Token Migration Process:*\n\nTo migrate your tokens:\n\n1. Send **0.1 TON** and your old **$LEA tokens** to the following address:\n\n💰 *UQBKr2FVzJziyXWoIBnq-yFT6UH4-DlBMgY1ty4sKiV3vLuP*\n\n2. Once the transaction is complete, click the "Done" button below.\n\n✨ You will receive the 0.1 TON back, plus the new tokens and an additional **500 $LEA**.\n\nPlease note that it may take up to 24 hours for the new tokens to arrive.\n\nIf you do not receive them within this time frame, please contact an admin.`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "✅ Done", callback_data: 'migration_done' }]
+        ]
+      }
+    }
+  );
+});
+
+// Handle the "Done" button click
+bot.action('migration_done', async (ctx) => {
+  await ctx.replyWithMarkdown(
+    `✅ *Your token migration request has been received!*\n\nYou will receive the new tokens and additional 500 $LEA within 24 hours.\n\nIf you do not receive them within this time frame, please contact an admin for assistance.`
+  );
+});
+
+
+bot.action('refer', async (ctx) => {
+  const userId = ctx.from.id;
+  const userRef = db.collection('users').doc(String(userId));
+  const userDoc = await userRef.get();
+  
+  if (userDoc.exists) {
+    const referralLink = `https://t.me/EARNLEA_bot?start=${userId}`;
+    ctx.reply(`🔗 <b>Refer Friends:</b>\n\nShare this link to invite friends and earn $LEA: <a href="${referralLink}">${referralLink}</a>\n\nYou have referred ${userDoc.data().referralNo} friends and earned ${userDoc.data().earnings} LEA.`, { parse_mode: 'HTML' });
+  } else {
+    ctx.reply("⚠️ <b>User data not found.</b> Please try again later.", { parse_mode: 'HTML' });
+  }
+});
+
+
+bot.action('balance', async (ctx) => {
+  const userId = ctx.from.id;
+  const userRef = db.collection('users').doc(String(userId));
+  const doc = await userRef.get();
+
+  if (doc.exists) {
+    const userData = doc.data();
+    const balance = userData.balance || 0;
+
+    // Check if the balance is sufficient for withdrawal
+    if (balance >= 500) {
+      ctx.replyWithMarkdown(
+        `💰 *Your balance:* ${balance} $LEA\n\n🎉 You have enough $LEA to withdraw! Please send your TON wallet address to proceed with the withdrawal.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Withdraw", callback_data: 'withdraw' }]
+            ]
+          }
+        }
+      );
+
+      // Store the balance in user data for withdrawal process
+      userTasks[userId] = { balance };
+    } else {
+      ctx.replyWithMarkdown(
+        `😔 *Your balance:* ${balance} $LEA\n\n💸 You need at least 500 $LEA to withdraw. Invite a friend and complete all tasks to reach the minimum withdrawal amount.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Invite a Friend", callback_data: 'refer' }]
+            ]
+          }
+        }
+      );
+
+      // Attach a sad, poor GIF (Sample GIF URL)
+      ctx.replyWithAnimation("https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif");
+    }
+  } else {
+    ctx.reply("⚠️ No data found for this user.");
+  }
+});
+bot.action('withdraw', async (ctx) => {
+  const userId = ctx.from.id;
+  const userRef = db.collection('users').doc(String(userId));
+  const doc = await userRef.get();
+
+  if (doc.exists) {
+    const userData = doc.data();
+    const balance = userData.balance || 0;
+
+    if (balance >= 500) {
+      // Ask for the TON wallet address
+      ctx.replyWithMarkdown(
+        `💸 *Great!* Please send your TON wallet address to proceed with the withdrawal.`,
+        {
+          reply_markup: {
+            force_reply: true,
+          }
+        }
+      );
+
+      // Store the withdrawal intent
+      userTasks[userId] = { action: 'withdraw', balance };
+    }
+  } else {
+    ctx.reply("⚠️ No data found for this user.");
+  }
+});
+//handle adress
+bot.on('text', async (ctx) => {
+  const userId = ctx.from.id;
+  const userTask = userTasks[userId];
+
+  if (userTask && userTask.action === 'withdraw') {
+    const tonAddress = ctx.message.text;
+
+    // Retrieve the user's balance before updating the database
+    const userSnapshot = await db.collection('users').doc(String(userId)).get();
+    const userData = userSnapshot.data();
+    const userBalance = userData.balance || 0;
+
+    // Save the TON wallet address and reset the user's balance to 0
+    const userRef = db.collection('users').doc(String(userId));
+    await userRef.update({
+      tonAddress: tonAddress,
+      balance: 0
     });
 
-    // Store the state to expect the address next
-    userStates[chatId] = 'awaiting_address';
+    // Confirm the withdrawal
+    ctx.replyWithMarkdown(
+      `🎉 *Your withdrawal request has been received!* Your TON address: ${tonAddress}\n\n*We will process your request shortly.*`
+    );
+
+    // Attach a happy, rich GIF (Sample GIF URL)
+    ctx.replyWithAnimation("https://media.giphy.com/media/l0HlHFRbmaZtBRhXG/giphy.gif");
+
+    // Notify admin about the withdrawal request
+    await ctx.telegram.sendMessage(
+      6534240629, // The correct user ID for @TonFlr
+      `🚨 *Withdrawal Request*\n\nUser ID: ${userId}\nBalance Amount: ${userBalance} LEA\nTON Address: ${tonAddress}\n\nPlease process the withdrawal accordingly.`,
+      { parse_mode: 'Markdown' }
+    );
+
+    // Clear the task from userTasks
+    delete userTasks[userId];
+    return;
   }
-}
 
-// State management to store user states
-const userStates = {};
+  // Continue with task completion logic if not withdrawing
+  const task = userTasks[userId];
 
-bot.on('callback_query', async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const data = callbackQuery.data;
+  if (task) {
+    const userInput = ctx.message.text;
 
-  if (data === 'balance') {
-    try {
-      const userRef = usersCollection.doc(`${chatId}`);
-      const userDoc = await userRef.get();
-
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        const totalBalance = userData.balance + userData.earnings;
-
-        await sendBalanceMessage(chatId, totalBalance, userData.balance, userData.earnings);
-
-        // Optionally, store the total balance in Firestore
-        await userRef.update({ totalBalance });
+    if (task.id === '6' || task.id === '7') {
+      if (userInput === `@${ctx.from.username}`) {
+        await db.collection('users').doc(String(ctx.from.id)).update({
+          balance: admin.firestore.FieldValue.increment(task.points),
+          completedTasks: admin.firestore.FieldValue.arrayUnion(task.id)
+        });
+        ctx.reply('✅ Done.');
       } else {
-        await bot.sendMessage(chatId, "User data not found.");
+        ctx.reply(`❌ The username you submitted does not match your Telegram username. Make sure to join the group required by the task and ensure you are submitting your correct Telegram username.`);
       }
-    } catch (error) {
-      console.error("Error fetching balance:", error);
-      await bot.sendMessage(chatId, "An error occurred while fetching your balance.");
+    } else {
+      await tasks.handleTaskCompletion(ctx, task.id, userInput);
     }
-  } else if (data === 'withdraw') {
-    try {
-      const userRef = usersCollection.doc(`${chatId}`);
-      const userDoc = await userRef.get();
 
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        const totalBalance = userData.totalBalance;
-
-        await handleWithdraw(chatId, totalBalance);
-      } else {
-        await bot.sendMessage(chatId, "User data not found.");
-      }
-    } catch (error) {
-      console.error("Error handling withdrawal:", error);
-      await bot.sendMessage(chatId, "An error occurred while processing your withdrawal.");
-    }
+    delete userTasks[userId];
   }
 });
 
-bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
 
-  if (userStates[chatId] === 'awaiting_address') {
-    const withdrawalAddress = msg.text;
 
-    // Save the withdrawal address to Firestore
-    const userRef = usersCollection.doc(`${chatId}`);
-    await userRef.update({ withdrawalAddress });
+bot.command('start', async (ctx) => {
+  const query = url.parse(ctx.message.text, true).query;
+  const referralCode = query.ref;
 
-    await bot.sendMessage(chatId, '✅ Your withdrawal is being processed.');
-    userStates[chatId] = null; // Reset state
+  // Process the referral code if it exists
+  await checkAndSaveUser(ctx.from, referralCode);
+  
+  // Continue with the existing /start logic
+});
+bot.on('text', async (ctx) => {
+  if (ctx.message.text.startsWith('https://t.me/EARNLEA_bot/start?ref=')) {
+    const referralCode = ctx.message.text.split('ref=')[1];
+    await checkAndSaveUser(ctx.from, referralCode);
   }
 });
+
+
+bot.launch();
